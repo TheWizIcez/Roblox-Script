@@ -83,3 +83,17 @@ simulateKeyPress(Enum.KeyCode.E)
 wait(0.5) -- Adjust the delay as needed
 simulateKeyPress(Enum.KeyCode.E)
 
+wait(0.5)
+
+player.Character:SetPrimaryPartCFrame(CFrame.new(-212.67807, 67.6827316, -116.808083, 0.896294534, 2.33220057e-08, 0.443459302, -2.55948667e-08, 1, -8.60205407e-10, -0.443459302, -1.05792841e-08, 0.896294534))
+
+-- Wait for a second
+wait(0.5)
+
+local function simulateKeyPress(keyCode)
+    game:GetService("VirtualInputManager"):SendKeyEvent(true, keyCode, false, game)
+end
+
+-- Simulate pressing the "E" key twice with a delay in between
+simulateKeyPress(Enum.KeyCode.E)
+
