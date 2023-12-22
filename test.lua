@@ -53,7 +53,7 @@ local teleportCoordinates = {
 }
 
 -- Repeat the entire process ~ times (adjust the loop count as needed)
-for _ = 1, 10 do
+for _ = 1, 9999999 do
     for _, coordinate in ipairs(teleportCoordinates) do
         teleportAndPressE(coordinate)
     end
