@@ -5,7 +5,7 @@ local function teleportAndPressE(cframe)
     player.Character:SetPrimaryPartCFrame(cframe)
 
     -- Wait for a second
-    wait(0.5)
+    wait(0.25)
 
     local function simulateKeyPress(keyCode)
         game:GetService("VirtualInputManager"):SendKeyEvent(true, keyCode, false, game)
@@ -13,11 +13,11 @@ local function teleportAndPressE(cframe)
 
     -- Simulate pressing the "E" key twice with a delay in between
     simulateKeyPress(Enum.KeyCode.E)
-    wait(0.5) -- Adjust the delay as needed
+    wait(0.25) -- Adjust the delay as needed
     simulateKeyPress(Enum.KeyCode.E)
 
     -- Wait for the next teleportation
-    wait(0.5)
+    wait(0.25)
 end
 
 -- Define a sequence of teleportation coordinates
@@ -27,12 +27,18 @@ local teleportCoordinates = {
     CFrame.new(-42.9359283, 67.128891, -45.1535263, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
     CFrame.new(-234.130249, 66.9622498, 2.85526085, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
     CFrame.new(-238.844421, 66.9622498, -62.2723923, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
+    CFrame.new(-212.728271, 66.9622498, -35.6604843, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
+    CFrame.new(-150.381592, 66.9622498, 11.0834742, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
+    CFrame.new(-112.058609, 66.9622498, 2.85526133, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
+    CFrame.new(-191.123596, 66.9622498, -71.7654648, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
+    CFrame.new(-64.3376617, 66.9622498, -6.63777924, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
+    CFrame.new(-69.0518951, 66.9622498, -71.7654648, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
     CFrame.new(-212.67807, 67.6827316, -116.808083, 0.896294534, 2.33220057e-08, 0.443459302, -2.55948667e-08, 1, -8.60205407e-10, -0.443459302, -1.05792841e-08, 0.896294534),
     -- Add more coordinates as needed
 }
 
 -- Repeat the entire process ~ times (adjust the loop count as needed)
-for _ = 1, 1000 do
+for _ = 1, 10 do
     for _, coordinate in ipairs(teleportCoordinates) do
         teleportAndPressE(coordinate)
     end
