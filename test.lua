@@ -6,7 +6,7 @@ local function teleportAndPressE()
     local userInputService = game:GetService("UserInputService")
 
     for i = 1, 2 do
-        userInputService.InputBegan:Fire({ KeyCode = Enum.KeyCode.E })
+     game:GetService("VirtualInputManager"):SendKeyEvent(true,Enum.KeyCode.E,false,game)
         wait(0.5) -- Adjust the delay as needed
     end
 end
