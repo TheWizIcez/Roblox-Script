@@ -1,18 +1,16 @@
-local function teleportAndPressE()
-    -- Teleport the player's character to a specific CFrame
-    game.Players.LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(-72.9692993, 66.9621964, 17.4288006, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627))
+local player = game.Players.LocalPlayer
 
-    -- Simulate pressing the "E" key twice with a delay in between
-    local userInputService = game:GetService("UserInputService")
+-- Teleport the player's character to a specific CFrame
+player.Character:SetPrimaryPartCFrame(CFrame.new(-195.040909, 66.9622498, 17.4288158, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627))
 
-    for i = 1, 2 do
-     game:GetService("VirtualInputManager"):SendKeyEvent(true,Enum.KeyCode.E,false,game)
-        wait(0.5) -- Adjust the delay as needed
-    end
+-- Wait for a second
+wait(0.5)
+
+local function simulateKeyPress(keyCode)
+    game:GetService("VirtualInputManager"):SendKeyEvent(true, keyCode, false, game)
 end
 
--- Repeat the entire process 3 times
-for j = 1, 3 do
-    teleportAndPressE()
-    wait(1) -- Adjust the delay between repetitions as needed
-end
+-- Simulate pressing the "E" key twice with a delay in between
+simulateKeyPress(Enum.KeyCode.E)
+wait(0.5) -- Adjust the delay as needed
+simulateKeyPress(Enum.KeyCode.E)
