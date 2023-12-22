@@ -1,4 +1,3 @@
-----------------------------------------------------------------------------------
 local function teleportAndPressE(cframe)
     local player = game.Players.LocalPlayer
 
@@ -32,7 +31,9 @@ local teleportCoordinates = {
     -- Add more coordinates as needed
 }
 
--- Loop through the coordinates and perform teleportation and key presses
-for _, coordinate in ipairs(teleportCoordinates) do
-    teleportAndPressE(coordinate)
+-- Repeat the entire process ~ times (adjust the loop count as needed)
+for _ = 1, 1000 do
+    for _, coordinate in ipairs(teleportCoordinates) do
+        teleportAndPressE(coordinate)
+    end
 end
