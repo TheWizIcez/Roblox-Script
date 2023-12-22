@@ -1,26 +1,21 @@
 local function teleportAndPressE(cframe)
     local player = game.Players.LocalPlayer
 
-    -- Teleport the player's character to a specific CFrame
     player.Character:SetPrimaryPartCFrame(cframe)
 
-    -- Wait for a second
     wait(0.25)
 
     local function simulateKeyPress(keyCode)
         game:GetService("VirtualInputManager"):SendKeyEvent(true, keyCode, false, game)
     end
 
-    -- Simulate pressing the "E" key twice with a delay in between
     simulateKeyPress(Enum.KeyCode.E)
-    wait(0.25) -- Adjust the delay as needed
+    wait(0.25)
     simulateKeyPress(Enum.KeyCode.E)
 
-    -- Wait for the next teleportation
     wait(0.25)
 end
 
--- Define a sequence of teleportation coordinates
 local teleportCoordinates = {
     CFrame.new(-195.040909, 66.9622498, 17.4288158, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
     CFrame.new(-72.9692993, 66.9621964, 17.4288006, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
@@ -49,10 +44,8 @@ local teleportCoordinates = {
     CFrame.new(33.7654991, 66.9622498, -11.1706743, 0.965929627, 0, 0.258804798, 0, 1, 0, -0.258804798, 0, 0.965929627),
     CFrame.new(-212.67807, 67.6827316, -116.808083, 0.896294534, 2.33220057e-08, 0.443459302, -2.55948667e-08, 1, -8.60205407e-10, -0.443459302, -1.05792841e-08, 0.896294534),
 
-    -- Add more coordinates as needed
 }
 
--- Repeat the entire process ~ times (adjust the loop count as needed)
 for _ = 1, 9999999 do
     for _, coordinate in ipairs(teleportCoordinates) do
         teleportAndPressE(coordinate)
