@@ -18,9 +18,9 @@ local function TeleportPlayerToPartInFolder(folder)
         local group = folder:FindFirstChild("ChestModel")
         local part = FindPartInGroup(group)
         if part then
-            local character = player.Character
-            if character and character:IsDescendantOf(workspace) and character:FindFirstChild("Humanoid") then
-                player.Character:SetPrimaryPartCFrame(part.CFrame)
+            local humanoidRootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                humanoidRootPart.CFrame = part.CFrame
                 return true
             end
         end
