@@ -29,14 +29,13 @@ local function TeleportPlayerToPartInFolder(folder)
 end
 
 local bb = game:GetService('VirtualUser')
-local antiAFKDelay = 300 -- Anti-AFK delay in seconds
-local lastActionTime = tick() -- Initialize last action time to current time
+local antiAFKDelay = 300
+local lastActionTime = tick()
 
 while true do
     local currentTime = tick()
     local elapsedTime = currentTime - lastActionTime
 
-    -- Check if it's time to perform anti-AFK action
     if elapsedTime >= antiAFKDelay then
         bb:CaptureController()
         bb:ClickButton2(Vector2.new())
