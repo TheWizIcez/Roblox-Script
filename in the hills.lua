@@ -28,20 +28,9 @@ local function TeleportPlayerToPartInFolder(folder)
     return false
 end
 
-local bb = game:GetService('VirtualUser')
-local antiAFKDelay = 300
-local lastActionTime = tick()
+local currentIndex = 1
 
 while true do
-    local currentTime = tick()
-    local elapsedTime = currentTime - lastActionTime
-
-    if elapsedTime >= antiAFKDelay then
-        bb:CaptureController()
-        bb:ClickButton2(Vector2.new())
-        lastActionTime = currentTime
-    end
-
     local activeChests = workspace:GetChildren()
     local folderToTeleport = nil
     
