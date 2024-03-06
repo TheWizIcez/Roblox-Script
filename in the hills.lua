@@ -15,8 +15,8 @@ end
 
 local function TeleportPlayerToPartInFolder(folder)
     if folder then
-        local group = folder:FindFirstChild("ChestModel")
-        local part = FindPartInGroup(group)
+        local chestModel = folder:FindFirstChild("ChestModel") or folder:FindFirstChild("RareChestModel")
+        local part = FindPartInGroup(chestModel)
         if part then
             local humanoidRootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
             if humanoidRootPart then
