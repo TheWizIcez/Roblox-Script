@@ -22,8 +22,8 @@ local function createButton(text, pos, size)
 	return btn
 end
 
-local equipButton = createButton("Auto Equip OFF", UDim2.new(0,10,0,10))
-local throwButton = createButton("Auto Throw OFF", UDim2.new(0,10,0,60))
+local equipButton = createButton("Auto Equip Cluster OFF", UDim2.new(0,10,0,10))
+local throwButton = createButton("Auto Throw Cluster OFF", UDim2.new(0,10,0,60))
 local collectButton = createButton("Auto Collect OFF", UDim2.new(0,10,0,110))
 local fastToolButton = createButton("Fast Tool OFF", UDim2.new(0,10,0,160), UDim2.new(0,180,0,50))
 local respawnTeleportButton = createButton("Respawn Teleport OFF", UDim2.new(0,10,0,220), UDim2.new(0,180,0,50))
