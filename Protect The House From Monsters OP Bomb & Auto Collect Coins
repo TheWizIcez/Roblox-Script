@@ -65,14 +65,32 @@ local rewardFolder = Workspace:WaitForChild("RewardDrops")
 local collectedCoins = {}
 local lastPosition = nil
 
--- Track last position
-task.spawn(function()
-	while true do
-		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-			lastPosition = player.Character.HumanoidRootPart.Position
+-- ==== Character Tracking (for death teleport) ====
+local function trackCharacter(char)
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	local humanoid = char:WaitForChild("Humanoid")
+
+	-- Update lastPosition while alive
+	local heartbeatConn
+	heartbeatConn = RunService.Heartbeat:Connect(function()
+		if humanoid.Health > 0 then
+			lastPosition = hrp.Position
 		end
-		task.wait(1)
-	end
+	end)
+
+	-- On death, stop updating lastPosition
+	humanoid.Died:Connect(function()
+		if heartbeatConn then
+			heartbeatConn:Disconnect()
+		end
+	end)
+end
+
+if player.Character then
+	trackCharacter(player.Character)
+end
+player.CharacterAdded:Connect(function(char)
+	trackCharacter(char)
 end)
 
 -- ==== Auto Equip Loop ====
@@ -124,15 +142,12 @@ local function collectCoin(coinModel)
 
 	collectedCoins[id] = true
 
-	-- Teleport near coin
 	local originalPos = hrp.Position
 	hrp.CFrame = coinPart.CFrame + Vector3.new(0,3,0)
 	task.wait(0.05)
-
 	pcall(function()
 		collectRemote:FireServer(id)
 	end)
-
 	task.wait(0.05)
 	hrp.CFrame = CFrame.new(originalPos)
 end
@@ -198,7 +213,6 @@ end)
 
 -- ==== Respawn Teleport ====
 player.CharacterAdded:Connect(function(char)
-	task.wait(0.5)
 	local hrp = char:WaitForChild("HumanoidRootPart")
 	if lastPosition then
 		task.wait(5)
