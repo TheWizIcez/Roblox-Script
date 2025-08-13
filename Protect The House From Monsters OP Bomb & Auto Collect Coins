@@ -2,161 +2,206 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 
 -- ==== GUI Setup ====
 local screenGui = Instance.new("ScreenGui")
+screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 140, 0, 40)
-toggleButton.Position = UDim2.new(0, 10, 0, 10)
-toggleButton.Text = "Auto Grenade OFF"
-toggleButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-toggleButton.TextScaled = true
-toggleButton.Parent = screenGui
+local function createButton(text, pos)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 140, 0, 40)
+	btn.Position = pos
+	btn.Text = text
+	btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+	btn.TextScaled = true
+	btn.Parent = screenGui
+	return btn
+end
+
+local equipButton = createButton("Auto Equip OFF", UDim2.new(0,10,0,10))
+local throwButton = createButton("Auto Throw OFF", UDim2.new(0,10,0,60))
+local collectButton = createButton("Auto Collect OFF", UDim2.new(0,10,0,110))
 
 -- Draggable logic
-local dragging = false
-local dragStart, startPos
-
-toggleButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = toggleButton.Position
-    end
+local dragging, dragStart, startPos, dragButton
+for _, btn in ipairs({equipButton, throwButton, collectButton}) do
+	btn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = btn.Position
+			dragButton = btn
+		end
+	end)
+	btn.InputChanged:Connect(function(input)
+		if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
+			local delta = input.Position - dragStart
+			dragButton.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+		dragButton = nil
+	end
 end)
 
-toggleButton.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        if dragging then
-            local delta = input.Position - dragStart
-            toggleButton.Position = UDim2.new(
-                startPos.X.Scale, startPos.X.Offset + delta.X,
-                startPos.Y.Scale, startPos.Y.Offset + delta.Y
-            )
-        end
-    end
-end)
-
-game:GetService("UserInputService").InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
--- ==== Auto Equip ClusterBomb ====
+-- ==== Variables ====
 local buyRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("BuyOrEquipWeapon")
 local weaponName = "ClusterBomb"
-local autoEquip = true
-local equipDelay = 0.25
+local autoEquip, autoThrow, autoCollect = false, false, false
+local equipDelay, collectDelay = 0.25, 0.3
+local throwArgs = {CFrame.new(-86.03622436523438,0,-43.947940826416016, -0,0.998425304889679,0.05609897896647453, -0.016352668404579163,-0.05609148368239403,0.9982917308807373, 0.9998663663864136,-0.000917367986403405,0.016326915472745895)}
+local collectRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CollectRewardDrop")
+local rewardFolder = Workspace:WaitForChild("RewardDrops")
+local collectedCoins = {}
+local lastPosition = nil
 
+-- Track last position
 task.spawn(function()
-    while true do
-        task.wait(equipDelay)
-        if autoEquip then
-            buyRemote:FireServer(weaponName)
-        end
-    end
+	while true do
+		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			lastPosition = player.Character.HumanoidRootPart.Position
+		end
+		task.wait(1)
+	end
 end)
 
--- ==== Auto Throw ClusterBomb ====
-local throwArgs = { CFrame.new(-86.03622436523438, 0, -43.947940826416016, -0, 0.998425304889679, 0.05609897896647453, -0.016352668404579163, -0.05609148368239403, 0.9982917308807373, 0.9998663663864136, -0.0009173679864034057, 0.016326915472745895) }
-local autoThrow = false
+-- ==== Auto Equip Loop ====
+task.spawn(function()
+	while true do
+		task.wait(equipDelay)
+		if autoEquip then
+			pcall(function()
+				buyRemote:FireServer(weaponName)
+			end)
+		end
+	end
+end)
 
+-- ==== Auto Throw Loop ====
 local function getThrowEvent()
-    local char = player.Character or player.CharacterAdded:Wait()
-    local cluster = char:FindFirstChild("ClusterBomb")
-    if cluster then
-        return cluster:FindFirstChild("ThrowGrenade")
-    end
-    return nil
+	local char = player.Character or player.CharacterAdded:Wait()
+	local cluster = char:FindFirstChild("ClusterBomb")
+	if cluster then
+		return cluster:FindFirstChild("ThrowGrenade")
+	end
+	return nil
 end
 
 RunService.Heartbeat:Connect(function()
-    if autoThrow then
-        local throwEvent = getThrowEvent()
-        if throwEvent then
-            throwEvent:FireServer(unpack(throwArgs))
-        end
-    end
+	if autoThrow then
+		local throwEvent = getThrowEvent()
+		if throwEvent then
+			pcall(function()
+				throwEvent:FireServer(unpack(throwArgs))
+			end)
+		end
+	end
 end)
 
-toggleButton.MouseButton1Click:Connect(function()
-    autoThrow = not autoThrow
-    if autoThrow then
-        toggleButton.Text = "Auto Grenade ON"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-    else
-        toggleButton.Text = "Auto Grenade OFF"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-    end
-end)
-
--- ==== Auto Collect Coins (Teleports near coin to ensure collection) ====
-local collectRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CollectRewardDrop")
-local rewardFolder = Workspace:WaitForChild("RewardDrops")
-local autoCollect = true
-local collectDelay = 0.3
-
-local collectedCoins = {}
-
+-- ==== Auto Collect Coins (Teleport near coin) ====
 local function collectCoin(coinModel)
-    if not coinModel or not coinModel.Parent then return end
-    local coinPart = coinModel:FindFirstChild("GoldCoin")
-    if not coinPart then return end
+	if not coinModel or not coinModel.Parent then return end
+	local coinPart = coinModel:FindFirstChild("GoldCoin")
+	if not coinPart then return end
 
-    local idStr = coinModel.Name:match("%d+")
-    local id = tonumber(idStr)
-    if not id or collectedCoins[id] then return end
+	local idStr = coinModel.Name:match("%d+")
+	local id = tonumber(idStr)
+	if not id or collectedCoins[id] then return end
 
-    -- Ensure player character exists
-    local char = player.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
 
-    collectedCoins[id] = true
+	collectedCoins[id] = true
 
-    -- Teleport near coin
-    local originalPos = hrp.Position
-    hrp.CFrame = coinPart.CFrame + Vector3.new(0, 3, 0) -- slightly above the coin
-    task.wait(0.05)
+	-- Teleport near coin
+	local originalPos = hrp.Position
+	hrp.CFrame = coinPart.CFrame + Vector3.new(0,3,0)
+	task.wait(0.05)
 
-    pcall(function()
-        collectRemote:FireServer(id)
-    end)
+	pcall(function()
+		collectRemote:FireServer(id)
+	end)
 
-    task.wait(0.05)
-    -- Optional: teleport back
-    hrp.CFrame = CFrame.new(originalPos)
+	task.wait(0.05)
+	hrp.CFrame = CFrame.new(originalPos)
 end
 
--- Loop over existing coins
 task.spawn(function()
-    while true do
-        task.wait(collectDelay)
-        if autoCollect then
-            for _, coinModel in ipairs(rewardFolder:GetChildren()) do
-                collectCoin(coinModel)
-            end
-        end
-    end
+	while true do
+		task.wait(collectDelay)
+		if autoCollect then
+			for _, coinModel in ipairs(rewardFolder:GetChildren()) do
+				collectCoin(coinModel)
+			end
+		end
+	end
 end)
 
--- Reset collected coins if removed
-rewardFolder.ChildRemoved:Connect(function(coin)
-    local idStr = coin.Name:match("%d+")
-    local id = tonumber(idStr)
-    if id then
-        collectedCoins[id] = nil
-    end
-end)
-
--- Collect coins as they spawn
 rewardFolder.ChildAdded:Connect(function(newCoin)
-    if autoCollect then
-        collectCoin(newCoin)
-    end
+	if autoCollect then
+		collectCoin(newCoin)
+	end
+end)
+
+rewardFolder.ChildRemoved:Connect(function(coin)
+	local idStr = coin.Name:match("%d+")
+	local id = tonumber(idStr)
+	if id then
+		collectedCoins[id] = nil
+	end
+end)
+
+-- ==== Button Clicks ====
+equipButton.MouseButton1Click:Connect(function()
+	autoEquip = not autoEquip
+	if autoEquip then
+		equipButton.Text = "Auto Equip ON"
+		equipButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
+	else
+		equipButton.Text = "Auto Equip OFF"
+		equipButton.BackgroundColor3 = Color3.fromRGB(200,0,0)
+	end
+end)
+
+throwButton.MouseButton1Click:Connect(function()
+	autoThrow = not autoThrow
+	if autoThrow then
+		throwButton.Text = "Auto Throw ON"
+		throwButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
+	else
+		throwButton.Text = "Auto Throw OFF"
+		throwButton.BackgroundColor3 = Color3.fromRGB(200,0,0)
+	end
+end)
+
+collectButton.MouseButton1Click:Connect(function()
+	autoCollect = not autoCollect
+	if autoCollect then
+		collectButton.Text = "Auto Collect ON"
+		collectButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
+	else
+		collectButton.Text = "Auto Collect OFF"
+		collectButton.BackgroundColor3 = Color3.fromRGB(200,0,0)
+	end
+end)
+
+-- ==== Respawn Teleport ====
+player.CharacterAdded:Connect(function(char)
+	task.wait(0.5)
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	if lastPosition then
+		task.wait(5)
+		hrp.CFrame = CFrame.new(lastPosition)
+	end
 end)
