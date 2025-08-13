@@ -161,7 +161,7 @@ local function collectCoin(coinModel)
 
 	collectedCoins[id] = true
 	local originalPos = hrp.Position
-	hrp.CFrame = coinPart.CFrame + Vector3.new(0,3,0)
+	hrp.CFrame = coinPart.CFrame + Vector3.new(0,-3,0)
 	task.wait(0.05)
 	pcall(function()
 		collectRemote:FireServer(id)
