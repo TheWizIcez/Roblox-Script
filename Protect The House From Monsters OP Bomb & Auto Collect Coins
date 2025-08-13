@@ -11,9 +11,9 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local function createButton(text, pos)
+local function createButton(text, pos, size)
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0, 140, 0, 40)
+	btn.Size = size or UDim2.new(0, 140, 0, 40)
 	btn.Position = pos
 	btn.Text = text
 	btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
@@ -25,10 +25,12 @@ end
 local equipButton = createButton("Auto Equip OFF", UDim2.new(0,10,0,10))
 local throwButton = createButton("Auto Throw OFF", UDim2.new(0,10,0,60))
 local collectButton = createButton("Auto Collect OFF", UDim2.new(0,10,0,110))
+local fastToolButton = createButton("Fast Tool OFF", UDim2.new(0,10,0,160), UDim2.new(0,180,0,50))
+local respawnTeleportButton = createButton("Respawn Teleport OFF", UDim2.new(0,10,0,220), UDim2.new(0,180,0,50))
 
 -- Draggable logic
 local dragging, dragStart, startPos, dragButton
-for _, btn in ipairs({equipButton, throwButton, collectButton}) do
+for _, btn in ipairs({equipButton, throwButton, collectButton, fastToolButton, respawnTeleportButton}) do
 	btn.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
@@ -57,50 +59,58 @@ end)
 -- ==== Variables ====
 local buyRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("BuyOrEquipWeapon")
 local weaponName = "ClusterBomb"
-local autoEquip, autoThrow, autoCollect = false, false, false
+local autoEquip, autoThrow, autoCollect, fastTool, respawnTeleport = false, false, false, false, false
 local equipDelay, collectDelay = 0.25, 0.3
-local throwArgs = {CFrame.new(-86.03622436523438,0,-43.947940826416016, -0,0.998425304889679,0.05609897896647453, -0.016352668404579163,-0.05609148368239403,0.9982917308807373, 0.9998663663864136,-0.000917367986403405,0.016326915472745895)}
+local throwArgs = {CFrame.new(-86.036,0,-43.947, -0,0.998,0.056, -0.016,-0.056,0.998, 0.999,-0.0009,0.016)}
 local collectRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CollectRewardDrop")
 local rewardFolder = Workspace:WaitForChild("RewardDrops")
 local collectedCoins = {}
-local lastPosition = nil
 
--- ==== Character Tracking (capture position on death) ====
+-- ==== Respawn & Death Tracking ====
+local lastAlivePosition = nil
+local deadPosition = nil
+
 local function trackCharacter(char)
 	local hrp = char:WaitForChild("HumanoidRootPart")
 	local humanoid = char:WaitForChild("Humanoid")
-	local aliveConn
+	local heartbeatConn
 
-	-- Track position only while alive
-	aliveConn = RunService.Heartbeat:Connect(function()
+	heartbeatConn = RunService.Heartbeat:Connect(function()
 		if humanoid.Health > 0 then
-			lastPosition = hrp.Position
+			lastAlivePosition = hrp.Position
 		end
 	end)
 
-	-- Capture exact last position on death
 	humanoid.Died:Connect(function()
-		if aliveConn then
-			aliveConn:Disconnect()
+		if hrp then
+			deadPosition = hrp.Position
+		else
+			deadPosition = lastAlivePosition
+		end
+		if heartbeatConn then
+			heartbeatConn:Disconnect()
 		end
 	end)
+end
+
+local function onCharacterAdded(char)
+	trackCharacter(char)
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	if respawnTeleport then
+		task.delay(1, function()
+			if deadPosition and char and char.Parent then
+				pcall(function()
+					hrp.CFrame = CFrame.new(deadPosition + Vector3.new(0,3,0))
+				end)
+			end
+		end)
+	end
 end
 
 if player.Character then
-	trackCharacter(player.Character)
+	onCharacterAdded(player.Character)
 end
-player.CharacterAdded:Connect(function(char)
-	trackCharacter(char)
-	-- Teleport back after 5 seconds if we have a pre-death position
-	local hrp = char:WaitForChild("HumanoidRootPart")
-	if lastPosition then
-		task.wait(5)
-		-- Make sure character still exists
-		if char and char.Parent then
-			hrp.CFrame = CFrame.new(lastPosition)
-		end
-	end
-end)
+player.CharacterAdded:Connect(onCharacterAdded)
 
 -- ==== Auto Equip Loop ====
 task.spawn(function()
@@ -135,7 +145,7 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
--- ==== Auto Collect Coins (Teleport near coin) ====
+-- ==== Auto Collect Coins ====
 local function collectCoin(coinModel)
 	if not coinModel or not coinModel.Parent then return end
 	local coinPart = coinModel:FindFirstChild("GoldCoin")
@@ -150,7 +160,6 @@ local function collectCoin(coinModel)
 	if not hrp then return end
 
 	collectedCoins[id] = true
-
 	local originalPos = hrp.Position
 	hrp.CFrame = coinPart.CFrame + Vector3.new(0,3,0)
 	task.wait(0.05)
@@ -187,35 +196,43 @@ rewardFolder.ChildRemoved:Connect(function(coin)
 end)
 
 -- ==== Button Clicks ====
-equipButton.MouseButton1Click:Connect(function()
-	autoEquip = not autoEquip
-	if autoEquip then
-		equipButton.Text = "Auto Equip ON"
-		equipButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
-	else
-		equipButton.Text = "Auto Equip OFF"
-		equipButton.BackgroundColor3 = Color3.fromRGB(200,0,0)
-	end
-end)
+local function setupToggle(button, varRef)
+	button.MouseButton1Click:Connect(function()
+		_G[varRef] = not _G[varRef]
+		-- update local variable properly
+		if varRef == "autoEquip" then autoEquip = _G[varRef] end
+		if varRef == "autoThrow" then autoThrow = _G[varRef] end
+		if varRef == "autoCollect" then autoCollect = _G[varRef] end
+		if varRef == "fastTool" then fastTool = _G[varRef] end
+		if varRef == "respawnTeleport" then respawnTeleport = _G[varRef] end
 
-throwButton.MouseButton1Click:Connect(function()
-	autoThrow = not autoThrow
-	if autoThrow then
-		throwButton.Text = "Auto Throw ON"
-		throwButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
-	else
-		throwButton.Text = "Auto Throw OFF"
-		throwButton.BackgroundColor3 = Color3.fromRGB(200,0,0)
-	end
-end)
+		local val = _G[varRef]
+		if val then
+			button.Text = button.Text:gsub("OFF","ON")
+			button.BackgroundColor3 = Color3.fromRGB(0,200,0)
+		else
+			button.Text = button.Text:gsub("ON","OFF")
+			button.BackgroundColor3 = Color3.fromRGB(200,0,0)
+		end
+	end)
+end
 
-collectButton.MouseButton1Click:Connect(function()
-	autoCollect = not autoCollect
-	if autoCollect then
-		collectButton.Text = "Auto Collect ON"
-		collectButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
-	else
-		collectButton.Text = "Auto Collect OFF"
-		collectButton.BackgroundColor3 = Color3.fromRGB(200,0,0)
+setupToggle(equipButton, "autoEquip")
+setupToggle(throwButton, "autoThrow")
+setupToggle(collectButton, "autoCollect")
+setupToggle(fastToolButton, "fastTool")
+setupToggle(respawnTeleportButton, "respawnTeleport")
+
+-- ==== Fast Tool Loop ====
+RunService.Heartbeat:Connect(function()
+	if fastTool then
+		local char = player.Character
+		local backpack = player:FindFirstChildOfClass("Backpack")
+		local tool = char and char:FindFirstChildOfClass("Tool") or backpack and backpack:FindFirstChildOfClass("Tool")
+		if tool and tool:IsA("Tool") then
+			pcall(function()
+				tool:Activate()
+			end)
+		end
 	end
 end)
