@@ -50,8 +50,8 @@ end)
 -- ==== Auto Equip ClusterBomb ====
 local buyRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("BuyOrEquipWeapon")
 local weaponName = "ClusterBomb"
-local autoEquip = true -- toggle on/off
-local equipDelay = 0.3 -- seconds between each auto fire
+local autoEquip = true
+local equipDelay = 0.25
 
 task.spawn(function()
     while true do
@@ -63,16 +63,8 @@ task.spawn(function()
 end)
 
 -- ==== Auto Throw ClusterBomb ====
-local throwArgs = {
-    CFrame.new(
-        -86.03622436523438, 0, -43.947940826416016,
-        -0, 0.998425304889679, 0.05609897896647453,
-        -0.016352668404579163, -0.05609148368239403, 0.9982917308807373,
-        0.9998663663864136, -0.0009173679864034057, 0.016326915472745895
-    )
-}
-
-local autoThrow = false -- toggle ON/OFF
+local throwArgs = { CFrame.new(-86.03622436523438, 0, -43.947940826416016, -0, 0.998425304889679, 0.05609897896647453, -0.016352668404579163, -0.05609148368239403, 0.9982917308807373, 0.9998663663864136, -0.0009173679864034057, 0.016326915472745895) }
+local autoThrow = false
 
 local function getThrowEvent()
     local char = player.Character or player.CharacterAdded:Wait()
@@ -92,7 +84,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Toggle Button for autoThrow
 toggleButton.MouseButton1Click:Connect(function()
     autoThrow = not autoThrow
     if autoThrow then
@@ -104,25 +95,26 @@ toggleButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- ==== Auto Collect Coins ====
+-- ==== Auto Collect Coins (Handles other players collecting) ====
 local collectRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CollectRewardDrop")
 local rewardFolder = Workspace:WaitForChild("RewardDrops")
-local autoCollect = true -- toggle on/off
-local collectDelay = 0.3 -- seconds between loops
+local autoCollect = true
+local collectDelay = 0.5
+
+local collectedCoins = {}
 
 local function collectCoin(coinModel)
     if coinModel and coinModel:FindFirstChild("GoldCoin") then
-        local coinName = coinModel.Name
-        local idStr = coinName:match("%d+")
-        if idStr then
-            local id = tonumber(idStr)
-            if id then
-                collectRemote:FireServer(id)
-            end
+        local idStr = coinModel.Name:match("%d+")
+        local id = tonumber(idStr)
+        if id and not collectedCoins[id] then
+            collectedCoins[id] = true
+            collectRemote:FireServer(id)
         end
     end
 end
 
+-- Loop over existing coins
 task.spawn(function()
     while true do
         task.wait(collectDelay)
@@ -131,5 +123,21 @@ task.spawn(function()
                 collectCoin(coinModel)
             end
         end
+    end
+end)
+
+-- Reset collected coins when they are removed (so respawn or other players don't block collection)
+rewardFolder.ChildRemoved:Connect(function(coin)
+    local idStr = coin.Name:match("%d+")
+    local id = tonumber(idStr)
+    if id then
+        collectedCoins[id] = nil
+    end
+end)
+
+-- Collect coins as they spawn
+rewardFolder.ChildAdded:Connect(function(newCoin)
+    if autoCollect then
+        collectCoin(newCoin)
     end
 end)
