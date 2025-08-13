@@ -5,15 +5,17 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
 -- ==== GUI Setup ====
 local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CombinedGUI"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.Parent = playerGui
 
 local function createButton(text, pos, size)
 	local btn = Instance.new("TextButton")
-	btn.Size = size or UDim2.new(0, 140, 0, 40)
+	btn.Size = size or UDim2.new(0, 180, 0, 50)
 	btn.Position = pos
 	btn.Text = text
 	btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
@@ -22,15 +24,18 @@ local function createButton(text, pos, size)
 	return btn
 end
 
-local equipButton = createButton("Auto Equip Cluster OFF", UDim2.new(0,10,0,10))
-local throwButton = createButton("Auto Throw Cluster OFF", UDim2.new(0,10,0,60))
-local collectButton = createButton("Auto Collect OFF", UDim2.new(0,10,0,110))
-local fastToolButton = createButton("Fast Tool OFF", UDim2.new(0,10,0,160), UDim2.new(0,180,0,50))
-local respawnTeleportButton = createButton("Respawn Teleport OFF", UDim2.new(0,10,0,220), UDim2.new(0,180,0,50))
+-- Buttons
+local equipClusterButton = createButton("Auto Equip Cluster OFF", UDim2.new(0,10,0,10))
+local throwClusterButton = createButton("Auto Throw Cluster OFF", UDim2.new(0,10,0,70))
+local collectButton = createButton("Auto Collect OFF", UDim2.new(0,10,0,130))
+local fastToolButton = createButton("Fast Tool OFF", UDim2.new(0,10,0,190), UDim2.new(0,180,0,50))
+local respawnTeleportButton = createButton("Respawn Teleport OFF", UDim2.new(0,10,0,250), UDim2.new(0,180,0,50))
+local monsterFollowButton = createButton("Monster Follow OFF", UDim2.new(0,10,0,320))
+local autoEquipPlankButton = createButton("Auto Equip Plank OFF", UDim2.new(0,10,0,380))
 
--- Draggable logic
+-- ==== Draggable Logic ====
 local dragging, dragStart, startPos, dragButton
-for _, btn in ipairs({equipButton, throwButton, collectButton, fastToolButton, respawnTeleportButton}) do
+for _, btn in ipairs({equipClusterButton, throwClusterButton, collectButton, fastToolButton, respawnTeleportButton, monsterFollowButton, autoEquipPlankButton}) do
 	btn.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
@@ -60,16 +65,17 @@ end)
 local buyRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("BuyOrEquipWeapon")
 local weaponName = "ClusterBomb"
 local autoEquip, autoThrow, autoCollect, fastTool, respawnTeleport = false, false, false, false, false
+local monsterFollow, autoEquipPlank = false, false
+local currentTarget = nil
+local followDistance = 4.5
 local equipDelay, collectDelay = 0.25, 0.3
 local throwArgs = {CFrame.new(-86.036,0,-43.947, -0,0.998,0.056, -0.016,-0.056,0.998, 0.999,-0.0009,0.016)}
 local collectRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CollectRewardDrop")
 local rewardFolder = Workspace:WaitForChild("RewardDrops")
 local collectedCoins = {}
+local lastAlivePosition, deadPosition = nil, nil
 
--- ==== Respawn & Death Tracking ====
-local lastAlivePosition = nil
-local deadPosition = nil
-
+-- ==== Character Tracking ====
 local function trackCharacter(char)
 	local hrp = char:WaitForChild("HumanoidRootPart")
 	local humanoid = char:WaitForChild("Humanoid")
@@ -107,12 +113,62 @@ local function onCharacterAdded(char)
 	end
 end
 
-if player.Character then
-	onCharacterAdded(player.Character)
-end
+if player.Character then onCharacterAdded(player.Character) end
 player.CharacterAdded:Connect(onCharacterAdded)
 
--- ==== Auto Equip Loop ====
+-- ==== Button Toggles ====
+local function setupToggle(button, varRef, onText, offText)
+	button.MouseButton1Click:Connect(function()
+		_G[varRef] = not _G[varRef]
+		local val = _G[varRef]
+		if varRef == "autoEquip" then autoEquip = val end
+		if varRef == "autoThrow" then autoThrow = val end
+		if varRef == "autoCollect" then autoCollect = val end
+		if varRef == "fastTool" then fastTool = val end
+		if varRef == "respawnTeleport" then respawnTeleport = val end
+
+		if val then
+			button.Text = onText
+			button.BackgroundColor3 = Color3.fromRGB(0,200,0)
+		else
+			button.Text = offText
+			button.BackgroundColor3 = Color3.fromRGB(200,0,0)
+		end
+	end)
+end
+
+setupToggle(equipClusterButton, "autoEquip", "Auto Equip Cluster ON", "Auto Equip Cluster OFF")
+setupToggle(throwClusterButton, "autoThrow", "Auto Throw Cluster ON", "Auto Throw Cluster OFF")
+setupToggle(collectButton, "autoCollect", "Auto Collect ON", "Auto Collect OFF")
+setupToggle(fastToolButton, "fastTool", "Fast Tool ON", "Fast Tool OFF")
+setupToggle(respawnTeleportButton, "respawnTeleport", "Respawn Teleport ON", "Respawn Teleport OFF")
+
+-- Monster Follow and Auto Equip Plank buttons
+monsterFollowButton.MouseButton1Click:Connect(function()
+	monsterFollow = not monsterFollow
+	if monsterFollow then
+		monsterFollowButton.Text = "Monster Follow ON"
+		monsterFollowButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
+	else
+		monsterFollowButton.Text = "Monster Follow OFF"
+		monsterFollowButton.BackgroundColor3 = Color3.fromRGB(200,0,0)
+		currentTarget = nil
+	end
+end)
+
+autoEquipPlankButton.MouseButton1Click:Connect(function()
+	autoEquipPlank = not autoEquipPlank
+	if autoEquipPlank then
+		autoEquipPlankButton.Text = "Auto Equip Plank ON"
+		autoEquipPlankButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
+	else
+		autoEquipPlankButton.Text = "Auto Equip Plank OFF"
+		autoEquipPlankButton.BackgroundColor3 = Color3.fromRGB(200,0,0)
+	end
+end)
+
+-- ==== Auto Loops ====
+-- Auto Equip Cluster
 task.spawn(function()
 	while true do
 		task.wait(equipDelay)
@@ -124,13 +180,11 @@ task.spawn(function()
 	end
 end)
 
--- ==== Auto Throw Loop ====
+-- Auto Throw Cluster
 local function getThrowEvent()
 	local char = player.Character or player.CharacterAdded:Wait()
 	local cluster = char:FindFirstChild("ClusterBomb")
-	if cluster then
-		return cluster:FindFirstChild("ThrowGrenade")
-	end
+	if cluster then return cluster:FindFirstChild("ThrowGrenade") end
 	return nil
 end
 
@@ -145,16 +199,14 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
--- ==== Auto Collect Coins ====
+-- Auto Collect Coins
 local function collectCoin(coinModel)
 	if not coinModel or not coinModel.Parent then return end
 	local coinPart = coinModel:FindFirstChild("GoldCoin")
 	if not coinPart then return end
-
 	local idStr = coinModel.Name:match("%d+")
 	local id = tonumber(idStr)
 	if not id or collectedCoins[id] then return end
-
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not hrp then return end
@@ -182,57 +234,60 @@ task.spawn(function()
 end)
 
 rewardFolder.ChildAdded:Connect(function(newCoin)
-	if autoCollect then
-		collectCoin(newCoin)
-	end
+	if autoCollect then collectCoin(newCoin) end
 end)
-
 rewardFolder.ChildRemoved:Connect(function(coin)
 	local idStr = coin.Name:match("%d+")
 	local id = tonumber(idStr)
-	if id then
-		collectedCoins[id] = nil
-	end
+	if id then collectedCoins[id] = nil end
 end)
 
--- ==== Button Clicks ====
-local function setupToggle(button, varRef)
-	button.MouseButton1Click:Connect(function()
-		_G[varRef] = not _G[varRef]
-		-- update local variable properly
-		if varRef == "autoEquip" then autoEquip = _G[varRef] end
-		if varRef == "autoThrow" then autoThrow = _G[varRef] end
-		if varRef == "autoCollect" then autoCollect = _G[varRef] end
-		if varRef == "fastTool" then fastTool = _G[varRef] end
-		if varRef == "respawnTeleport" then respawnTeleport = _G[varRef] end
-
-		local val = _G[varRef]
-		if val then
-			button.Text = button.Text:gsub("OFF","ON")
-			button.BackgroundColor3 = Color3.fromRGB(0,200,0)
-		else
-			button.Text = button.Text:gsub("ON","OFF")
-			button.BackgroundColor3 = Color3.fromRGB(200,0,0)
-		end
-	end)
-end
-
-setupToggle(equipButton, "autoEquip")
-setupToggle(throwButton, "autoThrow")
-setupToggle(collectButton, "autoCollect")
-setupToggle(fastToolButton, "fastTool")
-setupToggle(respawnTeleportButton, "respawnTeleport")
-
--- ==== Fast Tool Loop ====
+-- Fast Tool Loop
 RunService.Heartbeat:Connect(function()
 	if fastTool then
 		local char = player.Character
 		local backpack = player:FindFirstChildOfClass("Backpack")
 		local tool = char and char:FindFirstChildOfClass("Tool") or backpack and backpack:FindFirstChildOfClass("Tool")
 		if tool and tool:IsA("Tool") then
-			pcall(function()
-				tool:Activate()
-			end)
+			pcall(function() tool:Activate() end)
 		end
+	end
+end)
+
+-- Monster Follow + Auto Equip Plank
+RunService.Heartbeat:Connect(function()
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
+	-- Monster Follow
+	if monsterFollow then
+		if not currentTarget or not currentTarget.Parent or (currentTarget:FindFirstChildOfClass("Humanoid") and currentTarget:FindFirstChildOfClass("Humanoid").Health <= 0) then
+			local monstersFolder = Workspace:FindFirstChild("Monsters")
+			if monstersFolder then
+				local alive = {}
+				for _, monster in ipairs(monstersFolder:GetChildren()) do
+					local mHRP = monster:FindFirstChild("HumanoidRootPart")
+					local humanoid = monster:FindFirstChildOfClass("Humanoid")
+					if mHRP and humanoid and humanoid.Health > 0 then table.insert(alive, monster) end
+				end
+				if #alive > 0 then currentTarget = alive[math.random(1,#alive)] end
+			end
+		end
+		if currentTarget then
+			local targetHRP = currentTarget:FindFirstChild("HumanoidRootPart")
+			if targetHRP then
+				local lookVector = targetHRP.CFrame.LookVector
+				local behindPos = targetHRP.Position - lookVector*followDistance + Vector3.new(0,3,0)
+				hrp.CFrame = CFrame.new(behindPos, targetHRP.Position)
+			end
+		end
+	end
+
+	-- Auto Equip Plank
+	if autoEquipPlank then
+		local backpack = player:FindFirstChildOfClass("Backpack")
+		local tool = backpack and backpack:FindFirstChild("Plank")
+		if tool then tool.Parent = char end
 	end
 end)
