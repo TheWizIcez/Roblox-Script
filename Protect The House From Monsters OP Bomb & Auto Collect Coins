@@ -95,23 +95,42 @@ toggleButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- ==== Auto Collect Coins (Handles other players collecting) ====
+-- ==== Auto Collect Coins (Teleports near coin to ensure collection) ====
 local collectRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CollectRewardDrop")
 local rewardFolder = Workspace:WaitForChild("RewardDrops")
 local autoCollect = true
-local collectDelay = 0.5
+local collectDelay = 0.3
 
 local collectedCoins = {}
 
 local function collectCoin(coinModel)
-    if coinModel and coinModel:FindFirstChild("GoldCoin") then
-        local idStr = coinModel.Name:match("%d+")
-        local id = tonumber(idStr)
-        if id and not collectedCoins[id] then
-            collectedCoins[id] = true
-            collectRemote:FireServer(id)
-        end
-    end
+    if not coinModel or not coinModel.Parent then return end
+    local coinPart = coinModel:FindFirstChild("GoldCoin")
+    if not coinPart then return end
+
+    local idStr = coinModel.Name:match("%d+")
+    local id = tonumber(idStr)
+    if not id or collectedCoins[id] then return end
+
+    -- Ensure player character exists
+    local char = player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    collectedCoins[id] = true
+
+    -- Teleport near coin
+    local originalPos = hrp.Position
+    hrp.CFrame = coinPart.CFrame + Vector3.new(0, 3, 0) -- slightly above the coin
+    task.wait(0.05)
+
+    pcall(function()
+        collectRemote:FireServer(id)
+    end)
+
+    task.wait(0.05)
+    -- Optional: teleport back
+    hrp.CFrame = CFrame.new(originalPos)
 end
 
 -- Loop over existing coins
@@ -126,7 +145,7 @@ task.spawn(function()
     end
 end)
 
--- Reset collected coins when they are removed (so respawn or other players don't block collection)
+-- Reset collected coins if removed
 rewardFolder.ChildRemoved:Connect(function(coin)
     local idStr = coin.Name:match("%d+")
     local id = tonumber(idStr)
