@@ -1,0 +1,135 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+-- ==== GUI Setup ====
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 140, 0, 40)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
+toggleButton.Text = "Auto Grenade OFF"
+toggleButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+toggleButton.TextScaled = true
+toggleButton.Parent = screenGui
+
+-- Draggable logic
+local dragging = false
+local dragStart, startPos
+
+toggleButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = toggleButton.Position
+    end
+end)
+
+toggleButton.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        if dragging then
+            local delta = input.Position - dragStart
+            toggleButton.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end
+end)
+
+game:GetService("UserInputService").InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- ==== Auto Equip ClusterBomb ====
+local buyRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("BuyOrEquipWeapon")
+local weaponName = "ClusterBomb"
+local autoEquip = true -- toggle on/off
+local equipDelay = 0.3 -- seconds between each auto fire
+
+task.spawn(function()
+    while true do
+        task.wait(equipDelay)
+        if autoEquip then
+            buyRemote:FireServer(weaponName)
+        end
+    end
+end)
+
+-- ==== Auto Throw ClusterBomb ====
+local throwArgs = {
+    CFrame.new(
+        -86.03622436523438, 0, -43.947940826416016,
+        -0, 0.998425304889679, 0.05609897896647453,
+        -0.016352668404579163, -0.05609148368239403, 0.9982917308807373,
+        0.9998663663864136, -0.0009173679864034057, 0.016326915472745895
+    )
+}
+
+local autoThrow = false -- toggle ON/OFF
+
+local function getThrowEvent()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local cluster = char:FindFirstChild("ClusterBomb")
+    if cluster then
+        return cluster:FindFirstChild("ThrowGrenade")
+    end
+    return nil
+end
+
+RunService.Heartbeat:Connect(function()
+    if autoThrow then
+        local throwEvent = getThrowEvent()
+        if throwEvent then
+            throwEvent:FireServer(unpack(throwArgs))
+        end
+    end
+end)
+
+-- Toggle Button for autoThrow
+toggleButton.MouseButton1Click:Connect(function()
+    autoThrow = not autoThrow
+    if autoThrow then
+        toggleButton.Text = "Auto Grenade ON"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+    else
+        toggleButton.Text = "Auto Grenade OFF"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    end
+end)
+
+-- ==== Auto Collect Coins ====
+local collectRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CollectRewardDrop")
+local rewardFolder = Workspace:WaitForChild("RewardDrops")
+local autoCollect = true -- toggle on/off
+local collectDelay = 0.3 -- seconds between loops
+
+local function collectCoin(coinModel)
+    if coinModel and coinModel:FindFirstChild("GoldCoin") then
+        local coinName = coinModel.Name
+        local idStr = coinName:match("%d+")
+        if idStr then
+            local id = tonumber(idStr)
+            if id then
+                collectRemote:FireServer(id)
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        task.wait(collectDelay)
+        if autoCollect then
+            for _, coinModel in ipairs(rewardFolder:GetChildren()) do
+                collectCoin(coinModel)
+            end
+        end
+    end
+end)
